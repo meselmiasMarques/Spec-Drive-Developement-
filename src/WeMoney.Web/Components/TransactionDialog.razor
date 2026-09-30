@@ -1,0 +1,92 @@
+@inject ApiClient Api
+
+<MudDialog>
+    <TitleContent>@(Transaction is null ? "Nova transação" : "Editar transação")</TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudTextField @bind-Value="_description" Label="Descrição" MaxLength="Validators.DescriptionMaxLength"
+                          Required="true" RequiredError="Descrição é obrigatória." />
+            <MudNumericField @bind-Value="_amount" Label="Valor" Format="N2" Min="0m" HideSpinButtons="true"
+                             Adornment="Adornment.Start" AdornmentText="R$"
+                             Validation="@(new Func<decimal, string?>(Validators.Amount))" />
+            <MudSelect T="TransactionType" @bind-Value="_type" Label="Tipo">
+                <MudSelectItem Value="TransactionType.INCOME">@Labels.For(TransactionType.INCOME)</MudSelectItem>
+                <MudSelectItem Value="TransactionType.EXPENSE">@Labels.For(TransactionType.EXPENSE)</MudSelectItem>
+            </MudSelect>
+            <MudSelect T="Guid?" @bind-Value="_categoryId" Label="Categoria"
+                       Required="true" RequiredError="Categoria é obrigatória.">
+                @foreach (var category in Categories)
+                {
+                    <MudSelectItem T="Guid?" Value="category.Id">@category.Name (@Labels.For(category.Type))</MudSelectItem>
+                }
+            </MudSelect>
+            <MudDatePicker @bind-Date="_date" Label="Data" DateFormat="dd/MM/yyyy"
+                           HelperText="Se vazia, usa a data de hoje." Clearable="true" />
+        </MudForm>
+        @if (_error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4" Dense="true">@_error</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_busy" OnClick="SaveAsync">Salvar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+
+    /// <summary>Transação a editar; null para criar.</summary>
+    [Parameter] public TransactionResponse? Transaction { get; set; }
+
+    [Parameter, EditorRequired] public IReadOnlyList<CategoryResponse> Categories { get; set; } = [];
+
+    private MudForm _form = null!;
+    private string _description = "";
+    private decimal _amount;
+    private TransactionType _type = TransactionType.EXPENSE;
+    private Guid? _categoryId;
+    private DateTime? _date = DateTime.Today;
+    private string? _error;
+    private bool _busy;
+
+    protected override void OnInitialized()
+    {
+        if (Transaction is not null)
+        {
+            _description = Transaction.Description;
+            _amount = Transaction.Amount;
+            _type = Transaction.Type;
+            _categoryId = Transaction.CategoryId;
+            _date = Transaction.TransactionDate.ToDateTime(TimeOnly.MinValue);
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid)
+            return;
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var date = _date is { } d ? DateOnly.FromDateTime(d) : (DateOnly?)null;
+            var request = new TransactionRequest(_description.Trim(), _amount, _type, _categoryId!.Value, date);
+            var saved = Transaction is null
+                ? await Api.CreateTransactionAsync(request)
+                : await Api.UpdateTransactionAsync(Transaction.Id, request);
+            Dialog.Close(DialogResult.Ok(saved));
+        }
+        catch (ApiException e)
+        {
+            _error = e.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

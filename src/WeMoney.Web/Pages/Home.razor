@@ -1,0 +1,58 @@
+@page "/"
+@inject ApiClient Api
+
+<PageTitle>Saldo — WeMoney</PageTitle>
+
+<MudText Typo="Typo.h4" GutterBottom="true">Saldo</MudText>
+
+@if (_error is not null)
+{
+    <MudAlert Severity="Severity.Error">@_error</MudAlert>
+}
+else if (_balance is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    @* REQ-004 (SPEC-001): o usuário visualiza seu saldo. *@
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.subtitle2">Receitas</MudText>
+                <MudText Typo="Typo.h5" Color="Color.Success">@Money.Format(_balance.TotalIncome)</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.subtitle2">Despesas</MudText>
+                <MudText Typo="Typo.h5" Color="Color.Error">@Money.Format(_balance.TotalExpense)</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.subtitle2">Saldo</MudText>
+                <MudText Typo="Typo.h5" Color="@(_balance.Balance < 0 ? Color.Error : Color.Primary)">
+                    @Money.Format(_balance.Balance)
+                </MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private BalanceResponse? _balance;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _balance = await Api.GetBalanceAsync();
+        }
+        catch (ApiException e)
+        {
+            _error = e.Message;
+        }
+    }
+}

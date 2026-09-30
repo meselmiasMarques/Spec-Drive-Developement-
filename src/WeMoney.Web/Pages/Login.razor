@@ -1,0 +1,72 @@
+@page "/login"
+@attribute [AllowAnonymous]
+@inject ApiClient Api
+@inject JwtAuthenticationStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Entrar — WeMoney</PageTitle>
+
+<MudPaper Class="pa-6 mx-auto mt-8" MaxWidth="420px" Elevation="2">
+    <MudText Typo="Typo.h5" GutterBottom="true">Entrar</MudText>
+
+    <MudForm @ref="_form">
+        <MudTextField @bind-Value="_email" Label="E-mail" InputType="InputType.Email"
+                      Required="true" RequiredError="E-mail é obrigatório." autocomplete="username" />
+        <MudTextField @bind-Value="_password" Label="Senha" InputType="InputType.Password"
+                      Required="true" RequiredError="Senha é obrigatória." autocomplete="current-password" />
+    </MudForm>
+
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-4" Dense="true">@_error</MudAlert>
+    }
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-6"
+               Disabled="_busy" OnClick="SubmitAsync">Entrar</MudButton>
+
+    <MudText Typo="Typo.body2" Align="Align.Center" Class="mt-4">
+        Não tem conta? <MudLink Href="register">Cadastre-se</MudLink>
+    </MudText>
+</MudPaper>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthenticationState { get; set; } = null!;
+
+    private MudForm _form = null!;
+    private string _email = "";
+    private string _password = "";
+    private string? _error;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationState;
+        if (state.User.Identity?.IsAuthenticated == true)
+            Navigation.NavigateTo("", replace: true);
+    }
+
+    /// <summary>REQ-002: login com e-mail e senha.</summary>
+    private async Task SubmitAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid)
+            return;
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var response = await Api.LoginAsync(new LoginRequest(_email.Trim(), _password));
+            await AuthState.SignInAsync(response.AccessToken);
+            Navigation.NavigateTo("", replace: true);
+        }
+        catch (ApiException e)
+        {
+            _error = e.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

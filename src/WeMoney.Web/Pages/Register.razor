@@ -1,0 +1,69 @@
+@page "/register"
+@attribute [AllowAnonymous]
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Cadastro — WeMoney</PageTitle>
+
+<MudPaper Class="pa-6 mx-auto mt-8" MaxWidth="420px" Elevation="2">
+    <MudText Typo="Typo.h5" GutterBottom="true">Criar conta</MudText>
+
+    <MudForm @ref="_form">
+        <MudTextField @bind-Value="_name" Label="Nome" MaxLength="150"
+                      Required="true" RequiredError="Nome é obrigatório." autocomplete="name" />
+        <MudTextField @bind-Value="_email" Label="E-mail" InputType="InputType.Email" MaxLength="200"
+                      Required="true" RequiredError="E-mail é obrigatório."
+                      Validation="@(new Func<string, string?>(Validators.Email))" autocomplete="email" />
+        <MudTextField @bind-Value="_password" Label="Senha" InputType="InputType.Password"
+                      Required="true" RequiredError="Senha é obrigatória."
+                      Validation="@(new Func<string, string?>(Validators.Password))"
+                      HelperText="Mínimo de 8 caracteres." autocomplete="new-password" />
+    </MudForm>
+
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-4" Dense="true">@_error</MudAlert>
+    }
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-6"
+               Disabled="_busy" OnClick="SubmitAsync">Cadastrar</MudButton>
+
+    <MudText Typo="Typo.body2" Align="Align.Center" Class="mt-4">
+        Já tem conta? <MudLink Href="login">Entrar</MudLink>
+    </MudText>
+</MudPaper>
+
+@code {
+    private MudForm _form = null!;
+    private string _name = "";
+    private string _email = "";
+    private string _password = "";
+    private string? _error;
+    private bool _busy;
+
+    /// <summary>REQ-001: cadastro de usuário. As regras são revalidadas pela API.</summary>
+    private async Task SubmitAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid)
+            return;
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            await Api.RegisterAsync(new RegisterRequest(_name.Trim(), _email.Trim(), _password));
+            Snackbar.Add("Conta criada. Faça login para continuar.", Severity.Success);
+            Navigation.NavigateTo("login");
+        }
+        catch (ApiException e)
+        {
+            _error = e.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

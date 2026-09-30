@@ -1,0 +1,105 @@
+services:
+
+  postgres:
+    image: postgres:17
+    container_name: wemoney-postgres
+
+    environment:
+      POSTGRES_DB: WeMoneyDb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1q2w3e4r!@#$
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - wemoney-postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U postgres -d WeMoneyDb"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+    networks:
+      - wemoney-network
+
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+
+    container_name: wemoney-api
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: https://+:7124
+
+      ConnectionStrings__Default: >-
+        Host=postgres;
+        Port=5432;
+        Database=WeMoneyDb;
+        Username=postgres;
+        Password=1q2w3e4r!@#$
+
+      Database__MigrateOnStartup: "true"
+
+      Jwt__Key: "&*()@#%$^&*()_+123986655(*&ˆ%%ˆ$$%#$$%#"
+
+    ports:
+      - "7124:7124"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    networks:
+      - wemoney-network
+
+    volumes:
+      - ./src/WeMoney.Api:/src
+
+    restart: unless-stopped
+
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+
+    container_name: wemoney-web
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: https://+:7093
+
+    ports:
+      - "7093:7093"
+
+    depends_on:
+      - api
+
+    networks:
+      - wemoney-network
+
+    volumes:
+      - ./src/WeMoney.Web:/src
+
+    restart: unless-stopped
+
+
+networks:
+
+  wemoney-network:
+    driver: bridge
+
+
+volumes:
+
+  wemoney-postgres-data:

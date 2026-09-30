@@ -1,0 +1,72 @@
+@inject ApiClient Api
+
+<MudDialog>
+    <TitleContent>@(Category is null ? "Nova categoria" : "Editar categoria")</TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudTextField @bind-Value="_name" Label="Nome" MaxLength="Validators.CategoryNameMaxLength"
+                          Required="true" RequiredError="Nome é obrigatório."
+                          Validation="@(new Func<string, string?>(Validators.CategoryName))" />
+            <MudSelect T="TransactionType" @bind-Value="_type" Label="Tipo">
+                <MudSelectItem Value="TransactionType.INCOME">@Labels.For(TransactionType.INCOME)</MudSelectItem>
+                <MudSelectItem Value="TransactionType.EXPENSE">@Labels.For(TransactionType.EXPENSE)</MudSelectItem>
+            </MudSelect>
+        </MudForm>
+        @if (_error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4" Dense="true">@_error</MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_busy" OnClick="SaveAsync">Salvar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+
+    /// <summary>Categoria a editar; null para criar.</summary>
+    [Parameter] public CategoryResponse? Category { get; set; }
+
+    private MudForm _form = null!;
+    private string _name = "";
+    private TransactionType _type = TransactionType.EXPENSE;
+    private string? _error;
+    private bool _busy;
+
+    protected override void OnInitialized()
+    {
+        if (Category is not null)
+        {
+            _name = Category.Name;
+            _type = Category.Type;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid)
+            return;
+
+        _busy = true;
+        _error = null;
+        try
+        {
+            var request = new CategoryRequest(_name.Trim(), _type);
+            var saved = Category is null
+                ? await Api.CreateCategoryAsync(request)
+                : await Api.UpdateCategoryAsync(Category.Id, request);
+            Dialog.Close(DialogResult.Ok(saved));
+        }
+        catch (ApiException e)
+        {
+            _error = e.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

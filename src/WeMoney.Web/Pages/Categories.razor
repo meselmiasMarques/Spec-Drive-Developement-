@@ -1,0 +1,98 @@
+@page "/categories"
+@inject ApiClient Api
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+
+<PageTitle>Categorias — WeMoney</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <MudText Typo="Typo.h4">Categorias</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+               OnClick="() => EditAsync(null)">Nova</MudButton>
+</MudStack>
+
+@if (_error is not null)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">@_error</MudAlert>
+}
+
+<MudTable Items="_categories" Loading="_loading" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="1">
+    <HeaderContent>
+        <MudTh>Nome</MudTh>
+        <MudTh>Tipo</MudTh>
+        <MudTh Style="text-align:right">Ações</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Nome">@context.Name</MudTd>
+        <MudTd DataLabel="Tipo"><TransactionTypeChip Type="context.Type" /></MudTd>
+        <MudTd DataLabel="Ações" Style="text-align:right">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" aria-label="Editar"
+                           OnClick="() => EditAsync(context)" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" aria-label="Excluir"
+                           OnClick="() => DeleteAsync(context)" />
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>Nenhuma categoria cadastrada.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private List<CategoryResponse> _categories = [];
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _categories = (await Api.GetCategoriesAsync()).OrderBy(c => c.Name).ToList();
+            _error = null;
+        }
+        catch (ApiException e)
+        {
+            _error = e.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task EditAsync(CategoryResponse? category)
+    {
+        var parameters = new DialogParameters<CategoryDialog> { { d => d.Category, category } };
+        var dialog = await Dialogs.ShowAsync<CategoryDialog>(null, parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            Snackbar.Add("Categoria salva.", Severity.Success);
+            await LoadAsync();
+        }
+    }
+
+    /// <summary>RN-002: a API rejeita a exclusão de categoria com transações (409).</summary>
+    private async Task DeleteAsync(CategoryResponse category)
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("Excluir categoria",
+            $"Excluir a categoria \"{category.Name}\"?", yesText: "Excluir", cancelText: "Cancelar");
+        if (confirmed != true)
+            return;
+
+        try
+        {
+            await Api.DeleteCategoryAsync(category.Id);
+            Snackbar.Add("Categoria excluída.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (ApiException e)
+        {
+            Snackbar.Add(e.Message, Severity.Error);
+        }
+    }
+}

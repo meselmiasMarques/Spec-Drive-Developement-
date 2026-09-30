@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WeMoney.Api/WeMoney.Api.csproj" />
+    <Project Path="src/WeMoney.Application/WeMoney.Application.csproj" />
+    <Project Path="src/WeMoney.Domain/WeMoney.Domain.csproj" />
+    <Project Path="src/WeMoney.Infrastructure/WeMoney.Infrastructure.csproj" />
+    <Project Path="src/WeMoney.Web/WeMoney.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WeMoney.IntegrationTests/WeMoney.IntegrationTests.csproj" />
+    <Project Path="tests/WeMoney.UnitTests/WeMoney.UnitTests.csproj" />
+  </Folder>
+</Solution>

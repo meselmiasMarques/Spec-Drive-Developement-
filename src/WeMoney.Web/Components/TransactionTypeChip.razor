@@ -1,0 +1,8 @@
+<MudChip T="string" Size="Size.Small" Variant="Variant.Text"
+         Color="@(Type == TransactionType.INCOME ? Color.Success : Color.Error)">
+    @Labels.For(Type)
+</MudChip>
+
+@code {
+    [Parameter, EditorRequired] public TransactionType Type { get; set; }
+}
